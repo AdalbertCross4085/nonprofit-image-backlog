@@ -1,31 +1,33 @@
 # Batch images for a nonprofit storefront
 
-Donor receipts, volunteer reminders, and campaign reports arrive as a folder of images. This example turns that folder into concurrent upload-and-crop jobs with a small typed model. Infrai keeps the workflow to one API key and one HTTP interface, so the same client is easy to place beside a checkout or fulfillment script.
+Donor receipts, volunteer reminders, and campaign reports land as image folders. I like to think of it as: folder of images -> tag each file -> concurrent upload + smart crop -> per-file result. This example uses a small typed model to do that.
+
+Infrai gives you one key and one HTTP interface for the whole flow. That means the same client can sit next to your checkout or fulfillment script without a special SDK. Easy to watch what it does with logs.
 
 ## The workflow
 
-Name each file with its purpose before running the script: `receipt-april.jpg`, `reminder-saturday.png`, or `campaign-spring.jpg`. The first word selects a presentation ratio, then each file is uploaded and smart-cropped asynchronously. The command prints one result per file, including its purpose and returned image data.
+Before running the script, name each file by its purpose: `receipt-april.jpg`, `reminder-saturday.png`, or `campaign-spring.jpg`. The first word picks a presentation ratio. Then each file uploads and smart-crops async. The command prints one result per file with its purpose and returned image data.
 
 ```bash
 export INFRAI_API_KEY="your-key"
 python3 -m src.nonprofit_images ./backlog
 ```
 
-The code sends `POST /v1/image/upload` with `file` and `filename`, checks the response envelope, then sends `POST /v1/image/smart_crop` with `image` and `aspect`. A rejected envelope becomes `InfraiError`; a busy response waits using `Retry-After` before retrying. This keeps the caller's batch decision visible instead of hiding it in a generic SDK.
+The code sends `POST /v1/image/upload` with `file` and `filename`, checks the response envelope, then sends `POST /v1/image/smart_crop` with `image` and `aspect`. A rejected envelope turns into `InfraiError`; a busy response waits via `Retry-After` before retry. This keeps the batch decision in your code, not buried in a generic SDK. I'd add a log line per file so you can see the ratio choice in metrics.
 
 ## Try the decision locally
 
-The tests use temporary files and do not call the network. They verify that a receipt gets `4:3`, a campaign report gets `16:9`, and an unrecognised purpose gets a square crop.
+Tests use temp files and skip the network. They check that a receipt gets `4:3`, a campaign report gets `16:9`, and an odd purpose gets a square crop.
 
 ```bash
 pytest -q
 ```
 
-The example stops at upload and smart crop; storing or publishing the resulting data belongs to the surrounding nonprofit application.
+The example stops after upload and smart crop. Storing or publishing the bytes is up to your nonprofit app. Wire up alerting if the crop ratio surprises you.
 
 ## Files
 
-`src/nonprofit_images.py` contains the request model, envelope-aware client, async batch runner, and command-line entry point. `tests/test_nonprofit_images.py` covers the purpose-to-ratio business rule.
+`src/nonprofit_images.py` holds the request model, envelope-aware client, async batch runner, and CLI entry. `tests/test_nonprofit_images.py` covers the purpose-to-ratio rule.
 
 ## License
 
